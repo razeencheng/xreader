@@ -1,0 +1,33 @@
+.superpowers/
+.codex/
+.claude/
+.doc/
+.env
+.env.local
+.DS_Store
+.playwright-mcp/
+# Internal docs are ignored by default; public docs are explicitly allowlisted.
+docs/**
+!docs/screenshots/
+!docs/screenshots/**
+!docs/deployment.md
+!docs/deployment.zh-CN.md
+!docs/contributing.md
+!docs/contributing.zh-CN.md
+# Backstop: internal planning/audit material must never be published.
+docs/superpowers/
+docs/*-audit*.md
+docs/open-source-audit-report.md
+docs/ai-development-guidelines.md
+
+*.log
+
+dist/
+build/
+node_modules/
+web/.next/
+web/out/
+
+server/cmd/xreader/static
+server/bin/xreader
+server/xreader

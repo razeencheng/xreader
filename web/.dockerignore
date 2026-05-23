@@ -1,0 +1,39 @@
+# Dependencies and package-manager caches
+node_modules
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+.pnpm-store
+pnpm-store
+
+# Next.js and build outputs
+.next
+out
+build
+dist
+.turbo
+.vercel
+
+# Test artifacts and local reports
+coverage
+playwright-report
+test-results
+*.tsbuildinfo
+
+# Local configuration and logs
+.env
+.env.*
+!.env.example
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

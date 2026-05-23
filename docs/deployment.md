@@ -1,0 +1,312 @@
+**English** | [简体中文](deployment.zh-CN.md)
+
+# Deployment Guide
+
+## 1. Overview
+
+xReader is distributed as a single Go binary that serves the API, embeds the static Next.js frontend, and runs the RSS/AI worker — all in one process. The only external dependency is a Postgres 16 database.
+
+Pre-built container images are published to two registries:
+
+- **GitHub Container Registry:** `ghcr.io/razeencheng/xreader`
+- **Docker Hub:** `razeencheng/xreader`
+
+The binary auto-migrates the database on startup, so no manual migration step is needed in production. On the very first run, xReader prints a `SETUP TOKEN` to stdout; the admin uses that token to complete the Setup Wizard at `/setup`.
+
+> The marketing landing page lives in [`landing/`](../landing/) and deploys separately to Cloudflare Workers; see `landing/README.md`.
+
+---
+
+## 2. Quick Start with Prebuilt Image
+
+### 2.1 Create a `docker-compose.yml`
+
+```yaml
+services:
+  xreader:
+    image: ghcr.io/razeencheng/xreader:latest   # or razeencheng/xreader:latest (Docker Hub)
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://xreader:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/xreader?sslmode=disable
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET (openssl rand -hex 32)}
+      COOKIE_SECURE: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  postgres:
+    image: postgres:16
+    # No host port published — only the xreader service reaches it over the compose network.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: xreader
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: xreader
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U xreader"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata: {}
+```
+
+### 2.2 Generate secrets and start
+
+```bash
+export SESSION_SECRET=$(openssl rand -hex 32)
+export POSTGRES_PASSWORD=your-strong-db-password
+
+docker compose up -d
+```
+
+### 2.3 Retrieve the Setup Token
+
+On first run, xReader prints a one-time setup token to its logs:
+
+```bash
+docker compose logs xreader | grep "SETUP TOKEN"
+```
+
+Copy the token, then open `http://your-host:3000/setup` to complete the Setup Wizard.
+
+---
+
+## 3. Environment Variables
+
+| Variable | Required | Description |
+|---|:---:|---|
+| `DATABASE_URL` | Yes | Postgres connection string, e.g. `postgres://user:pass@host:5432/dbname?sslmode=disable` |
+| `SESSION_SECRET` | Yes | Random secret used to sign session cookies. Generate with `openssl rand -hex 32`. |
+| `GITHUB_CLIENT_ID` | No | GitHub OAuth App client ID (can also be set via Setup Wizard) |
+| `GITHUB_CLIENT_SECRET` | No | GitHub OAuth App client secret (can also be set via Setup Wizard) |
+| `GITHUB_CALLBACK_URL` | No | Full callback URL, e.g. `https://your-domain/api/auth/github/callback` |
+| `COOKIE_SECURE` | No | Set to `true` when running behind HTTPS. Required in production. |
+| `SETUP_TOKEN` | No | Fix the setup token to a known value instead of generating one on startup |
+| `XREADER_AI_ENCRYPTION_KEY` | No | Separate encryption key for AI secrets stored in the database |
+| `XREADER_GA_ID` | No | Google Analytics measurement ID (e.g. `G-XXXXXXXXXX`) |
+| `PORT` | No | HTTP listen port. Defaults to `3000`. |
+| `XREADER_DEV_MODE` | No | Set to `true` to allow a weak `SESSION_SECRET` in local development |
+
+All AI settings (base URL, model, API key) are stored encrypted in the `settings` database table and are managed through the Setup Wizard UI — they do not require environment variables.
+
+---
+
+## 4. Reverse Proxy and HTTPS
+
+Always place xReader behind a reverse proxy in production to terminate TLS and forward traffic to port 3000. Set `COOKIE_SECURE=true` so that session cookies are only sent over HTTPS.
+
+### Caddy example
+
+```caddyfile
+your-domain.com {
+    reverse_proxy xreader:3000
+}
+```
+
+Caddy automatically provisions and renews TLS certificates. It also sets `X-Forwarded-Proto` so xReader knows the request arrived over HTTPS.
+
+### nginx example
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name your-domain.com;
+
+    # TLS certificate configuration omitted — use certbot / Let's Encrypt.
+
+    location / {
+        proxy_pass         http://127.0.0.1:3000;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+}
+
+server {
+    listen 80;
+    server_name your-domain.com;
+    return 301 https://$host$request_uri;
+}
+```
+
+> **Important:** Ensure `X-Forwarded-Proto` is passed through so that redirect URLs generated by xReader use the correct scheme.
+
+---
+
+## 5. GitHub OAuth Setup
+
+xReader uses GitHub OAuth for authentication with an allowlist. Follow these steps:
+
+1. Go to **GitHub → Settings → Developer settings → OAuth Apps → New OAuth App**.
+2. Fill in:
+   - **Application name:** xReader (or any name you prefer)
+   - **Homepage URL:** `https://your-domain`
+   - **Authorization callback URL:** `https://your-domain/api/auth/github/callback`
+3. Click **Register application**, then generate a **Client Secret**.
+4. Provide the credentials either via environment variables:
+
+   ```bash
+   GITHUB_CLIENT_ID=Ov23li...
+   GITHUB_CLIENT_SECRET=abc123...
+   GITHUB_CALLBACK_URL=https://your-domain/api/auth/github/callback
+   ```
+
+   or enter them in the Setup Wizard UI (stored encrypted in the database).
+
+5. After the Setup Wizard, add allowed GitHub usernames to the admin allowlist so those users can sign in.
+
+---
+
+## 6. Setup Wizard
+
+On the very first startup, xReader prints a one-time `SETUP TOKEN` to its logs:
+
+```
+SETUP TOKEN: <token>
+```
+
+1. Open `https://your-domain/setup` (or `http://your-host:3000/setup` during initial setup).
+2. Enter the setup token to authenticate.
+3. Configure the **AI provider**:
+   - **Base URL** — any OpenAI-compatible endpoint (e.g. `https://api.openai.com/v1`)
+   - **Model** — e.g. `gpt-4o-mini`
+   - **API key** — stored encrypted in the database
+4. Configure **GitHub OAuth** (if not already set via environment variables).
+5. Add the initial **admin allowlist** — GitHub usernames that are permitted to sign in.
+
+If you set `SETUP_TOKEN` as an environment variable, the wizard will use that fixed token on every startup (useful for automated deployments). Without it, a new random token is generated each time the service starts.
+
+---
+
+## 7. Security Notes
+
+**Postgres exposure:** The dev `docker-compose.yml` checked into the repository publishes Postgres on `127.0.0.1:5432` for local development convenience. **Production deployments must NOT expose Postgres to the host or the internet.** The production compose snippet in Section 2 intentionally omits the `ports` key from the postgres service — Postgres is reachable only over the internal compose network.
+
+**SESSION_SECRET:** Always generate a strong, random value:
+
+```bash
+openssl rand -hex 32
+```
+
+Never reuse the same value across environments, and never commit it to version control.
+
+**Database password:** Use a long, randomly generated password for `POSTGRES_PASSWORD`. Avoid simple or dictionary-based passwords.
+
+**COOKIE_SECURE:** Set this to `true` in any deployment behind HTTPS. Leaving it unset in production allows session cookies to be sent over plain HTTP.
+
+**AI secrets:** AI provider credentials (API keys, base URLs) are stored AES-encrypted in the database using the key derived from `XREADER_AI_ENCRYPTION_KEY` (or `SESSION_SECRET` as a fallback). Protect access to the database and these environment variables accordingly.
+
+---
+
+## 8. Upgrading
+
+Migrations run automatically when xReader starts. To upgrade:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+The new image will start, run any pending database migrations, and then serve traffic. No manual migration step is required.
+
+> **Tip:** Pin to a specific image tag (e.g. `:v1.2.0`) in production rather than `:latest` to control when upgrades happen.
+
+---
+
+## 9. Backup and Restore
+
+### 9.1 Nightly backup with pg_dump
+
+Run a nightly backup from cron on the host. Example script:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+BACKUP_DIR=/data/xreader/backups
+mkdir -p "$BACKUP_DIR"
+
+TIMESTAMP="$(date +%F-%H%M%S)"
+BACKUP_FILE="$BACKUP_DIR/xreader-$TIMESTAMP.sql.gz"
+
+docker compose -f /data/xreader/deploy/docker-compose.yml exec -T postgres \
+  pg_dump -U xreader -d xreader \
+  | gzip > "$BACKUP_FILE"
+```
+
+Suggested cron entry (runs at 02:00 every night):
+
+```cron
+0 2 * * * /usr/local/bin/xreader-backup.sh
+```
+
+Keep a retention policy so the backup directory does not grow without bound.
+
+### 9.2 Backup verification
+
+Verify that the backup job is still working every day:
+
+1. Confirm the backup file exists and is non-empty.
+2. Check the gzip file can be read:
+
+   ```bash
+   gzip -t /data/xreader/backups/xreader-YYYY-MM-DD-HHMMSS.sql.gz
+   ```
+
+3. Inspect the latest backup timestamp.
+4. Periodically restore into a scratch database to confirm the dump is usable.
+
+### 9.3 Restore procedure
+
+When you need to restore the database:
+
+1. Stop the xreader service so nothing writes during restore:
+
+   ```bash
+   docker compose stop xreader
+   ```
+
+2. Drop and recreate the database:
+
+   ```bash
+   docker compose exec postgres psql -U xreader -c "DROP DATABASE xreader;"
+   docker compose exec postgres psql -U xreader -d postgres -c "CREATE DATABASE xreader OWNER xreader;"
+   ```
+
+3. Restore the backup into PostgreSQL:
+
+   ```bash
+   gunzip -c /data/xreader/backups/xreader-YYYY-MM-DD-HHMMSS.sql.gz \
+     | docker compose exec -T postgres psql -U xreader -d xreader
+   ```
+
+4. Start xreader again (migrations run automatically on startup):
+
+   ```bash
+   docker compose start xreader
+   ```
+
+### 9.4 Post-restore checks
+
+After the restore completes, verify:
+
+- `curl -fsS http://localhost:3000/health` returns `{"status":"ok"}`
+- The xreader logs show a successful database connection
+- Articles, sources, and admin allowlist rows are present
+- The web app loads and sign-in works
+
+### 9.5 Disaster recovery notes
+
+- Store backups on a volume separate from the live Postgres data directory.
+- Test the restore path on a staging host before you need it in production.
+- Keep at least one off-host copy if the homelab storage itself is the failure domain.

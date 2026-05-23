@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="UTF-8"/>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-43CQ5D99N9"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-43CQ5D99N9');
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>xReader — Read the world in your language</title>
+<meta name="description" content="Self-hosted RSS reader with AI-powered bilingual reading. Auto-translates titles and paragraphs side-by-side, generates key points, supports Fever API. Single Go binary, deploy in 2 minutes."/>
+<link rel="icon" href="assets/favicon-32x32.png" type="image/png" sizes="32x32"/>
+<link rel="icon" href="assets/favicon-16x16.png" type="image/png" sizes="16x16"/>
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png"/>
+<meta property="og:title" content="xReader"/>
+<meta property="og:description" content="Self-hosted RSS reader with AI-powered bilingual reading."/>
+<meta property="og:image" content="assets/og-image.png"/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://xreader.cc"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,wght@0,400;0,500;0,600;1,400&family=Noto+Serif+SC:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #f9f7f1;
+    --bg-elev: #ffffff;
+    --bg-sunken: #f1eee5;
+    --ink: #1a1a1a;
+    --ink-2: #2c2c2a;
+    --ink-3: #6b7280;
+    --ink-4: #9aa0a8;
+    --line: #e8e4d8;
+    --line-2: #d8d3c4;
+    --accent: #2563eb;
+    --accent-bg: #eaf0ff;
+    --accent-line: #c4d4ff;
+    --warm: #b54a1c;
+
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --font-serif: "Newsreader", "Source Serif Pro", Georgia, serif;
+    --font-cjk: "Noto Serif SC", "Songti SC", "PingFang SC", serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+      --bg: #1a1916;
+      --bg-elev: #232220;
+      --bg-sunken: #161513;
+      --ink: #f5f3ee;
+      --ink-2: #d8d4c8;
+      --ink-3: #9a948a;
+      --ink-4: #6a655c;
+      --line: #2e2c28;
+      --line-2: #3a3833;
+      --accent: #6ea0ff;
+      --accent-bg: #1f2740;
+      --accent-line: #2e3a5c;
+      --warm: #d46a3c;
+    }
+  }
+
+  /* i18n toggle */
+  [data-lang="en"] [data-i18n="zh"] { display: none !important; }
+  [data-lang="zh"] [data-i18n="en"] { display: none !important; }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.55;
+    font-size: 15px;
+    text-wrap: pretty;
+  }
+  ::selection { background: var(--accent); color: white; }
+  a { color: inherit; }
+
+  /* ===== Layout ===== */
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
+  .narrow { max-width: 760px; margin: 0 auto; padding: 0 28px; }
+
+  /* ===== Header ===== */
+  header.site {
+    position: sticky; top: 0; z-index: 30;
+    background: color-mix(in oklab, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s;
+  }
+  header.site.scrolled { border-bottom-color: var(--line); }
+  .site-inner {
+    max-width: 1080px; margin: 0 auto;
+    padding: 14px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 24px;
+  }
+  .brand {
+    display: inline-flex; align-items: center; gap: 10px;
+    text-decoration: none;
+    font-weight: 600; font-size: 15px; letter-spacing: -0.01em;
+  }
+  .brand-mark {
+    width: 28px; height: 28px; border-radius: 7px;
+    object-fit: contain;
+  }
+  nav.top { display: flex; align-items: center; gap: 6px; }
+  nav.top a,
+  .lang-toggle {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 7px;
+    border: 1px solid transparent;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  nav.top a {
+    text-decoration: none; color: var(--ink-2);
+    font-size: 13.5px;
+    transition: background 0.12s, color 0.12s;
+  }
+  nav.top a:hover { background: var(--bg-sunken); color: var(--ink); }
+  nav.top .gh {
+    gap: 6px;
+    font-family: var(--font-mono); font-size: 12px;
+    border-color: var(--line-2); background: var(--bg-elev);
+    margin-left: 6px;
+  }
+  .lang-toggle {
+    appearance: none;
+    border-color: var(--line-2);
+    background: var(--bg-elev);
+    font-family: var(--font-mono); font-size: 12px;
+    color: var(--ink-3);
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+    margin-left: 4px;
+    gap: 6px;
+  }
+  .lang-toggle:hover { background: var(--bg-sunken); border-color: var(--ink-4); }
+
+  /* ===== Hero ===== */
+  .hero { padding: 72px 0 56px; }
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 4px 11px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-family: var(--font-mono); font-size: 11.5px;
+    color: var(--ink-3);
+    background: var(--bg-elev);
+    margin-bottom: 28px;
+  }
+  .eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: #16a34a; }
+  h1.hero-title {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: clamp(40px, 6.4vw, 68px);
+    line-height: 1.04;
+    letter-spacing: -0.025em;
+    margin: 0 0 14px;
+    text-wrap: balance;
+    max-width: 18ch;
+  }
+  h1.hero-title em {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 500;
+    color: var(--warm);
+  }
+  .hero-title-zh-main {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: clamp(40px, 6.4vw, 68px);
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    margin: 0 0 14px;
+    text-wrap: balance;
+    max-width: 22ch;
+  }
+  .hero-title-zh-main em {
+    font-style: italic;
+    color: var(--warm);
+  }
+  .hero-subtitle {
+    font-family: var(--font-cjk);
+    font-weight: 500;
+    font-size: clamp(20px, 2.4vw, 26px);
+    color: var(--ink-3);
+    margin-bottom: 28px;
+    letter-spacing: 0.01em;
+  }
+  .hero-sub {
+    font-size: 18px; line-height: 1.55;
+    color: var(--ink-2);
+    max-width: 56ch;
+    margin-bottom: 36px;
+  }
+  .hero-ctas { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 18px;
+    border-radius: 8px;
+    font-size: 14px; font-weight: 500;
+    text-decoration: none;
+    transition: background 0.12s, border-color 0.12s, transform 0.12s;
+  }
+  .btn-primary { background: var(--ink); color: var(--bg); }
+  .btn-primary:hover { background: var(--ink-2); transform: translateY(-1px); }
+  .btn-secondary {
+    background: var(--bg-elev);
+    color: var(--ink);
+    border: 1px solid var(--line-2);
+  }
+  .btn-secondary:hover { background: var(--bg-sunken); border-color: var(--ink-4); }
+  .hero-meta {
+    margin-top: 22px;
+    display: inline-flex; align-items: center; gap: 16px;
+    font-family: var(--font-mono); font-size: 12px;
+    color: var(--ink-3);
+    flex-wrap: wrap;
+  }
+  .hero-meta span { display: inline-flex; align-items: center; gap: 6px; }
+  .hero-meta .dot { color: var(--ink-4); }
+
+  /* Hero shot */
+  .hero-shot {
+    margin-top: 64px;
+    position: relative;
+  }
+  .browser-frame {
+    border-radius: 14px;
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    box-shadow:
+      0 1px 2px rgba(0,0,0,0.04),
+      0 18px 60px -10px rgba(0,0,0,0.12),
+      0 8px 24px -8px rgba(0,0,0,0.08);
+  }
+  .browser-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-sunken);
+  }
+  .browser-dots { display: flex; gap: 6px; }
+  .browser-dots span {
+    width: 11px; height: 11px; border-radius: 50%;
+    background: var(--line-2);
+  }
+  .browser-url {
+    flex: 1;
+    font-family: var(--font-mono); font-size: 11.5px;
+    color: var(--ink-3);
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 4px 10px;
+    text-align: center;
+    max-width: 360px;
+    margin: 0 auto;
+  }
+  .browser-shot { display: block; width: 100%; height: auto; }
+
+  /* Floating glyphs around hero */
+  .hero-aside {
+    position: absolute;
+    top: -28px; right: -28px;
+    transform: rotate(4deg);
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    box-shadow: 0 8px 20px -8px rgba(0,0,0,0.1);
+    display: none;
+  }
+  @media (min-width: 920px) {
+    .hero-aside { display: block; }
+  }
+
+  /* ===== Section system ===== */
+  section { padding: 96px 0; }
+  .section-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-3);
+    margin-bottom: 14px;
+  }
+  h2.section-title {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: clamp(30px, 4vw, 44px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin: 0 0 16px;
+    max-width: 22ch;
+    text-wrap: balance;
+  }
+  h2.section-title em { font-style: italic; color: var(--warm); }
+  .section-sub {
+    font-size: 16.5px;
+    color: var(--ink-3);
+    max-width: 58ch;
+    margin: 0 0 48px;
+    line-height: 1.6;
+  }
+  .section-zh {
+    font-family: var(--font-cjk);
+    font-size: 14px;
+    color: var(--ink-4);
+    margin-top: -10px;
+    margin-bottom: 14px;
+    letter-spacing: 0.02em;
+  }
+
+  /* ===== Features ===== */
+  .feature {
+    padding: 80px 0;
+    border-top: 1px solid var(--line);
+  }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+  .feature.reverse .feature-grid { direction: rtl; }
+  .feature.reverse .feature-grid > * { direction: ltr; }
+  @media (max-width: 820px) {
+    .feature-grid { grid-template-columns: 1fr; gap: 32px; }
+  }
+  .feature-text h3 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: clamp(26px, 3vw, 34px);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin: 6px 0 14px;
+    text-wrap: balance;
+  }
+  [data-lang="zh"] .feature-text h3 {
+    font-family: var(--font-cjk);
+    letter-spacing: 0;
+  }
+  .feature-text h3 em { font-style: italic; color: var(--warm); }
+  .feature-text p {
+    color: var(--ink-2);
+    font-size: 16px;
+    line-height: 1.65;
+    margin: 0 0 18px;
+    max-width: 46ch;
+  }
+  .feature-bullets {
+    list-style: none; padding: 0; margin: 24px 0 0;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .feature-bullets li {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 14.5px;
+    color: var(--ink-2);
+  }
+  .feature-bullets svg {
+    flex-shrink: 0; margin-top: 4px;
+    color: var(--accent);
+  }
+
+  .feature-visual {
+    border-radius: 12px;
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    box-shadow: 0 12px 36px -16px rgba(0,0,0,0.12);
+  }
+  .feature-visual img { display: block; width: 100%; height: auto; }
+
+  /* Translation visual */
+  .translation-demo {
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 28px 30px;
+    box-shadow: 0 12px 36px -16px rgba(0,0,0,0.12);
+  }
+  .demo-title {
+    font-family: var(--font-cjk);
+    font-weight: 600;
+    font-size: 22px;
+    line-height: 1.3;
+    margin-bottom: 6px;
+    letter-spacing: -0.005em;
+  }
+  .demo-title-en {
+    font-family: var(--font-serif);
+    font-style: italic;
+    color: var(--ink-3);
+    font-size: 15px;
+    margin-bottom: 18px;
+  }
+  .keypoints {
+    background: var(--accent-bg);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 22px;
+    font-family: var(--font-cjk);
+  }
+  .keypoints-label {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .keypoints ul { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--ink-2); line-height: 1.7; }
+  .pair { margin-bottom: 14px; }
+  .pair .en {
+    font-family: var(--font-serif);
+    color: var(--ink-2);
+    font-size: 14.5px;
+    line-height: 1.6;
+    margin: 0 0 6px;
+  }
+  .pair .zh {
+    font-family: var(--font-cjk);
+    color: var(--ink);
+    font-size: 14.5px;
+    line-height: 1.75;
+    margin: 0;
+    padding-left: 12px;
+    border-left: 2px solid var(--line);
+  }
+
+  /* Self-hosted card */
+  .deploy-card {
+    background: var(--ink);
+    color: var(--bg);
+    border-radius: 12px;
+    padding: 28px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.7;
+    box-shadow: 0 12px 36px -16px rgba(0,0,0,0.18);
+  }
+  .deploy-card .pmt { color: #4ade80; }
+  .deploy-card .com { color: #9aa0a8; }
+  .deploy-card .ok { color: #6ea0ff; }
+  .deploy-card .out { color: var(--ink-4); }
+
+  /* Fever clients */
+  .fever-clients {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .fever-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px;
+    transition: border-color 0.12s;
+  }
+  .fever-card:hover { border-color: var(--ink-4); }
+  .fever-name {
+    font-weight: 500; font-size: 14px;
+    margin-bottom: 4px;
+  }
+  .fever-meta {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-3);
+  }
+
+  /* ===== How it works ===== */
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    margin-top: 16px;
+  }
+  @media (max-width: 720px) {
+    .steps { grid-template-columns: 1fr; }
+  }
+  .step { position: relative; }
+  .step-num {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 56px;
+    line-height: 1;
+    color: var(--warm);
+    margin-bottom: 14px;
+    font-weight: 400;
+  }
+  .step h3 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: 20px;
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+  [data-lang="zh"] .step h3 {
+    font-family: var(--font-cjk);
+    letter-spacing: 0;
+  }
+  .step p {
+    color: var(--ink-3);
+    font-size: 14.5px;
+    line-height: 1.6;
+    margin: 0 0 14px;
+  }
+  .step-cmd {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-2);
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 12px;
+    display: inline-block;
+  }
+  .step-cmd .pmt { color: var(--ink-4); margin-right: 6px; }
+
+  /* ===== Tech stack ===== */
+  .stack-section { background: var(--bg-sunken); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .stack-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    margin-top: 32px;
+  }
+  @media (max-width: 720px) {
+    .stack-grid { grid-template-columns: 1fr; }
+  }
+  .stack-block h4 {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+    margin: 0 0 10px;
+    font-weight: 500;
+  }
+  .stack-block p {
+    font-family: var(--font-serif);
+    font-size: 17px;
+    color: var(--ink);
+    margin: 0;
+    line-height: 1.5;
+  }
+  [data-lang="zh"] .stack-block p {
+    font-family: var(--font-cjk);
+    font-size: 16px;
+  }
+  .stack-block .mono {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--ink-2);
+  }
+
+  /* Keyboard chips */
+  .kbd-row {
+    display: inline-flex; flex-wrap: wrap; gap: 6px;
+    margin-top: 12px;
+  }
+  .kbd {
+    display: inline-grid; place-items: center;
+    min-width: 22px; height: 22px;
+    padding: 0 7px;
+    background: var(--bg-elev);
+    border: 1px solid var(--line-2);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-2);
+  }
+  .kbd-desc {
+    margin-left: 4px;
+    font-size: 12.5px;
+    color: var(--ink-3);
+  }
+
+  /* ===== CTA outro ===== */
+  .outro {
+    text-align: center;
+    padding: 120px 0 80px;
+    border-top: 1px solid var(--line);
+  }
+  .outro h2 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: clamp(36px, 5vw, 56px);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    margin: 0 0 12px;
+    text-wrap: balance;
+  }
+  [data-lang="zh"] .outro h2 {
+    font-family: var(--font-cjk);
+    letter-spacing: -0.01em;
+  }
+  .outro h2 em { font-style: italic; color: var(--warm); }
+  .outro .subtitle {
+    font-family: var(--font-cjk);
+    color: var(--ink-3);
+    font-size: 17px;
+    margin-bottom: 32px;
+  }
+
+  /* ===== Footer ===== */
+  footer.site {
+    border-top: 1px solid var(--line);
+    padding: 36px 0 48px;
+    color: var(--ink-3);
+    font-size: 13px;
+  }
+  .footer-inner {
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 16px;
+  }
+  .footer-links { display: flex; gap: 18px; }
+  .footer-links a {
+    color: var(--ink-3);
+    text-decoration: none;
+    transition: color 0.12s;
+  }
+  .footer-links a:hover { color: var(--ink); }
+  .footer-mono {
+    font-family: var(--font-mono); font-size: 11.5px;
+  }
+
+  /* Reveal */
+  .reveal {
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal { opacity: 1; transform: none; transition: none; }
+    html { scroll-behavior: auto; }
+  }
+
+  /* Mobile tweaks */
+  @media (max-width: 600px) {
+    .hero { padding: 48px 0 32px; }
+    section { padding: 64px 0; }
+    .feature { padding: 56px 0; }
+    nav.top a:not(.gh):not(.lang-toggle) { display: none; }
+    .site-inner { padding: 12px 20px; }
+    .wrap, .narrow { padding: 0 20px; }
+    .hero-shot { margin-top: 40px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site" id="siteHeader">
+  <div class="site-inner">
+    <a href="#" class="brand">
+      <img class="brand-mark" src="assets/icon.png" alt="xReader logo"/>
+      <span>xReader</span>
+    </a>
+    <nav class="top">
+      <a href="#features">
+        <span data-i18n="en">Features</span>
+        <span data-i18n="zh">功能</span>
+      </a>
+      <a href="#how">
+        <span data-i18n="en">How it works</span>
+        <span data-i18n="zh">使用方法</span>
+      </a>
+      <a href="#stack">
+        <span data-i18n="en">Tech</span>
+        <span data-i18n="zh">技术栈</span>
+      </a>
+      <button class="lang-toggle" onclick="toggleLang()" aria-label="Switch language">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <span data-i18n="en">ZH</span>
+        <span data-i18n="zh">EN</span>
+      </button>
+      <a class="gh" href="https://github.com/razeencheng/xreader" target="_blank" rel="noopener">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 0 0-2.5 15.6c.4.1.5-.2.5-.4v-1.5c-2.2.5-2.7-1-2.7-1-.4-.9-.9-1.2-.9-1.2-.7-.5.1-.5.1-.5.8.1 1.2.8 1.2.8.7 1.2 1.9.9 2.4.7.1-.5.3-.9.5-1.1-1.8-.2-3.6-.9-3.6-3.9 0-.9.3-1.6.8-2.1-.1-.2-.4-1 .1-2.1 0 0 .7-.2 2.2.8a7.5 7.5 0 0 1 4 0c1.5-1 2.2-.8 2.2-.8.4 1.1.2 1.9.1 2.1.5.5.8 1.2.8 2.1 0 3-1.8 3.7-3.6 3.9.3.2.5.7.5 1.5v2.2c0 .2.1.5.6.4A8 8 0 0 0 8 0z"/></svg>
+        <span>GitHub</span>
+      </a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- ===== Hero ===== -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-eyebrow">
+        <span class="eyebrow-dot"></span>
+        <span>v0.1.7 · self-hosted · AGPL-3.0</span>
+      </div>
+
+      <h1 class="hero-title" data-i18n="en">Read the world<br/>in <em>your</em> language.</h1>
+      <h1 class="hero-title-zh-main" data-i18n="zh">用<em>你的</em>语言<br/>阅读全世界</h1>
+
+      <p class="hero-sub">
+        <span data-i18n="en">A self-hosted RSS reader with AI translation built in. Titles and paragraphs side-by-side in your language, three-bullet summaries on every article, full-text CJK search, and a Fever API for the client you already love.</span>
+        <span data-i18n="zh">一款内置 AI 翻译的自托管 RSS 阅读器。标题与段落双语并排呈现，每篇文章自动生成三条要点摘要，支持中日韩全文搜索，兼容 Fever API，无缝接入你喜爱的客户端。</span>
+      </p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="https://github.com/razeencheng/xreader" target="_blank" rel="noopener">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 0 0-2.5 15.6c.4.1.5-.2.5-.4v-1.5c-2.2.5-2.7-1-2.7-1-.4-.9-.9-1.2-.9-1.2-.7-.5.1-.5.1-.5.8.1 1.2.8 1.2.8.7 1.2 1.9.9 2.4.7.1-.5.3-.9.5-1.1-1.8-.2-3.6-.9-3.6-3.9 0-.9.3-1.6.8-2.1-.1-.2-.4-1 .1-2.1 0 0 .7-.2 2.2.8a7.5 7.5 0 0 1 4 0c1.5-1 2.2-.8 2.2-.8.4 1.1.2 1.9.1 2.1.5.5.8 1.2.8 2.1 0 3-1.8 3.7-3.6 3.9.3.2.5.7.5 1.5v2.2c0 .2.1.5.6.4A8 8 0 0 0 8 0z"/></svg>
+          <span data-i18n="en">Get it on GitHub</span>
+          <span data-i18n="zh">GitHub 获取</span>
+        </a>
+        <a class="btn btn-secondary" href="https://app.xreader.cc" target="_blank" rel="noopener">
+          <span data-i18n="en">Try the live demo</span>
+          <span data-i18n="zh">在线体验</span>
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 3h4v4M13 3 7 9M11 9v4H3V5h4"/></svg>
+        </a>
+      </div>
+      <div class="hero-meta">
+        <span data-i18n="en">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m3 8 3 3 7-7"/></svg>Single Go binary
+        </span>
+        <span data-i18n="zh">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m3 8 3 3 7-7"/></svg>单一 Go 二进制
+        </span>
+        <span class="dot">·</span>
+        <span>Postgres</span>
+        <span class="dot">·</span>
+        <span data-i18n="en">Deploys in 2 minutes</span>
+        <span data-i18n="zh">2 分钟部署</span>
+      </div>
+
+      <!-- Hero shot -->
+      <div class="hero-shot reveal">
+        <div class="browser-frame">
+          <div class="browser-bar">
+            <div class="browser-dots"><span></span><span></span><span></span></div>
+            <div class="browser-url">app.xreader.cc/r/cloudflare-blog</div>
+            <div style="width: 56px;"></div>
+          </div>
+          <img class="browser-shot" data-i18n="zh" src="assets/reader.png" alt="xReader 展示 Cloudflare 博客文章的双语阅读视图，包含要点摘要。"/>
+          <img class="browser-shot" data-i18n="en" src="assets/reader-en.png" alt="xReader showing a Cloudflare blog post with side-by-side English and Chinese translation, plus a key points summary box."/>
+        </div>
+        <div class="hero-aside">
+          <span style="color: var(--accent);">&#9679;</span>
+          <span data-i18n="en"> key points · 3 bullets generated</span>
+          <span data-i18n="zh"> 要点 · 自动生成 3 条摘要</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Feature 1: Bilingual ===== -->
+  <section class="feature" id="features">
+    <div class="wrap">
+      <div class="feature-grid">
+        <div class="feature-text reveal">
+          <div class="section-eyebrow">
+            <span data-i18n="en">01 · Bilingual reading</span>
+            <span data-i18n="zh">01 · 双语阅读</span>
+          </div>
+          <h3>
+            <span data-i18n="en">Every article, in two languages — at the same time.</span>
+            <span data-i18n="zh">每篇文章，双语<em>同时</em>呈现。</span>
+          </h3>
+          <p>
+            <span data-i18n="en">Titles auto-translate the moment a feed updates. Paragraphs render side-by-side, each one paired with its translation so context never breaks. Three to five key points summarize the gist before you decide to dive in.</span>
+            <span data-i18n="zh">订阅源更新时标题自动翻译。段落双语并排呈现，每段与其译文配对，上下文不会断裂。三到五条要点在你阅读之前先告诉你文章在讲什么。</span>
+          </p>
+          <ul class="feature-bullets">
+            <li>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 8 3 3 7-7"/></svg>
+              <span data-i18n="en">Paragraph-paired or stacked layout — pick per article</span>
+              <span data-i18n="zh">段落配对或堆叠布局——逐篇选择</span>
+            </li>
+            <li>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 8 3 3 7-7"/></svg>
+              <span data-i18n="en">3-5 bullet key points generated for every story</span>
+              <span data-i18n="zh">每篇文章自动生成 3-5 条要点</span>
+            </li>
+            <li>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 8 3 3 7-7"/></svg>
+              <span data-i18n="en">Bring your own model — DeepSeek, Moonshot, GPT, or any OpenAI-compatible endpoint</span>
+              <span data-i18n="zh">自带模型——DeepSeek、Moonshot、GPT 或任何 OpenAI 兼容端点</span>
+            </li>
+          </ul>
+        </div>
+        <div class="reveal">
+          <div class="translation-demo">
+            <div class="demo-title">橙色代码：小规模故障已完成</div>
+            <div class="demo-title-en">Code Orange: Fail Small is complete</div>
+            <div class="keypoints">
+              <div class="keypoints-label">要点 · Key points</div>
+              <ul>
+                <li>Cloudflare 完成"橙色代码"工程，提升基础设施弹性</li>
+                <li>避免了 2025 年 11 月与 12 月的两次全球故障重演</li>
+                <li>新系统通过分级故障隔离降低连锁影响</li>
+              </ul>
+            </div>
+            <div class="pair">
+              <p class="en">Over the past two and a bit quarters, we've undertaken an intensive engineering effort, internally code-named "Code Orange: Fail Small."</p>
+              <p class="zh">在过去两个多季度里，我们开展了一项密集的工程工作，内部代号为"Code Orange: Fail Small"。</p>
+            </div>
+            <div class="pair">
+              <p class="en">While improving resiliency will never be a "job done," we have now completed the work that would have avoided two recent global outages.</p>
+              <p class="zh">虽然提升弹性永远不会是一份"完工的工作"，但我们现已完成了原本可以避免最近两次全球故障的工作。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Feature 2: Self-hosted ===== -->
+  <section class="feature reverse">
+    <div class="wrap">
+      <div class="feature-grid">
+        <div class="feature-text reveal">
+          <div class="section-eyebrow">
+            <span data-i18n="en">02 · Self-hosted</span>
+            <span data-i18n="zh">02 · 自托管</span>
+          </div>
+          <h3>
+            <span data-i18n="en">Your feeds. Your server. <em>Your</em> data.</span>
+            <span data-i18n="zh">你的订阅。你的服务器。<em>你的</em>数据。</span>
+          </h3>
+          <p>
+            <span data-i18n="en">One Go binary, one Postgres. No SaaS account, no telemetry, no opaque cloud. AGPL-3.0 means the code is yours to read, fork, and audit — and the AI bills are yours to choose, too.</span>
+            <span data-i18n="zh">一个 Go 二进制，一个 Postgres。无需 SaaS 账号，无遥测，无黑盒云服务。AGPL-3.0 意味着代码完全属于你——可阅读、可 fork、可审计，AI 费用也由你自己决定。</span>
+          </p>
+          <ul class="feature-bullets">
+            <li>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 8 3 3 7-7"/></svg>
+              <span data-i18n="en">Single static binary, ~28 MB</span>
+              <span data-i18n="zh">单一静态二进制，约 28 MB</span>
+            </li>
+            <li>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 8 3 3 7-7"/></svg>
+              <span data-i18n="en">Postgres for storage — pick your own host</span>
+              <span data-i18n="zh">Postgres 存储——自选托管方式</span>
+            </li>
+            <li>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 8 3 3 7-7"/></svg>
+              <span data-i18n="en">Zero analytics, zero phone-home</span>
+              <span data-i18n="zh">零分析追踪，零回传数据</span>
+            </li>
+          </ul>
+        </div>
+        <div class="reveal">
+          <div class="deploy-card">
+<span class="com"># Pull and run with one command</span><br/>
+<span class="pmt">$</span> docker compose up -d<br/>
+<br/>
+<span class="out">[+] Running 2/2</span><br/>
+<span class="out">&nbsp; ✔ postgres &nbsp; Started &nbsp; 1.2s</span><br/>
+<span class="out">&nbsp; ✔ xreader &nbsp;&nbsp; Started &nbsp; 2.0s</span><br/>
+<br/>
+<span class="com"># Open the setup wizard</span><br/>
+<span class="pmt">$</span> open http://localhost:3000<br/>
+<br/>
+<span class="ok">→</span> Welcome to xReader. Add your first feed.<br/>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Feature 3: Fever API ===== -->
+  <section class="feature">
+    <div class="wrap">
+      <div class="feature-grid">
+        <div class="feature-text reveal">
+          <div class="section-eyebrow">
+            <span data-i18n="en">03 · Fever API</span>
+            <span data-i18n="zh">03 · Fever API 兼容</span>
+          </div>
+          <h3>
+            <span data-i18n="en">Bring the client you already love.</span>
+            <span data-i18n="zh">接入你<em>最爱</em>的客户端。</span>
+          </h3>
+          <p>
+            <span data-i18n="en">xReader speaks the Fever API end-to-end. That means Reeder, NetNewsWire, Unread, Fiery Feeds — the apps already on your phone — can read, mark, and star without changes.</span>
+            <span data-i18n="zh">xReader 全面实现了 Fever API。Reeder、NetNewsWire、Unread、Fiery Feeds——这些你手机上已有的应用，无需任何修改即可阅读、标记和收藏。</span>
+          </p>
+          <ul class="feature-bullets">
+            <li>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 8 3 3 7-7"/></svg>
+              <span data-i18n="en">Drop-in replacement for any Fever-compatible app</span>
+              <span data-i18n="zh">即插即用，兼容所有 Fever 客户端</span>
+            </li>
+            <li>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 8 3 3 7-7"/></svg>
+              <span data-i18n="en">Read state syncs both ways instantly</span>
+              <span data-i18n="zh">已读状态双向即时同步</span>
+            </li>
+            <li>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 8 3 3 7-7"/></svg>
+              <span data-i18n="en">Translation + key points still available in the web reader</span>
+              <span data-i18n="zh">翻译 + 要点摘要在网页阅读器中始终可用</span>
+            </li>
+          </ul>
+        </div>
+        <div class="reveal">
+          <div class="fever-clients">
+            <div class="fever-card">
+              <div class="fever-name">Reeder 5</div>
+              <div class="fever-meta">iOS · macOS · iPadOS</div>
+            </div>
+            <div class="fever-card">
+              <div class="fever-name">NetNewsWire</div>
+              <div class="fever-meta">macOS · iOS · open source</div>
+            </div>
+            <div class="fever-card">
+              <div class="fever-name">Unread</div>
+              <div class="fever-meta">iOS · iPadOS</div>
+            </div>
+            <div class="fever-card">
+              <div class="fever-name">Fiery Feeds</div>
+              <div class="fever-meta">iOS · macOS</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Screenshots ===== -->
+  <section style="border-top: 1px solid var(--line);">
+    <div class="wrap reveal">
+      <div class="section-eyebrow">
+        <span data-i18n="en">04 · See it in motion</span>
+        <span data-i18n="zh">04 · 一览全貌</span>
+      </div>
+      <h2 class="section-title">
+        <span data-i18n="en">A reader that gets out of the way.</span>
+        <span data-i18n="zh">不打扰你的阅读器。</span>
+      </h2>
+      <p class="section-sub">
+        <span data-i18n="en">Warm paper background, serif Chinese alongside Newsreader Latin, line-height tuned per script. Keyboard-first, with margins that breathe.</span>
+        <span data-i18n="zh">温暖的纸张背景，中文宋体与英文衬线字体并列，逐语种调优行高。键盘优先，留白从容。</span>
+      </p>
+
+      <div style="display: grid; gap: 28px;">
+        <div class="browser-frame">
+          <div class="browser-bar">
+            <div class="browser-dots"><span></span><span></span><span></span></div>
+            <div class="browser-url">app.xreader.cc · feed list</div>
+            <div style="width: 56px;"></div>
+          </div>
+          <img class="browser-shot" data-i18n="zh" src="assets/feed-list.png" alt="xReader 订阅列表视图，包含未读/全部/已读标签和简洁的文章列表。"/>
+          <img class="browser-shot" data-i18n="en" src="assets/feed-list-en.png" alt="The feed list pane in xReader, with unread/all/read tabs and a clean three-line item layout."/>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== How it works ===== -->
+  <section id="how" style="border-top: 1px solid var(--line); background: var(--bg-sunken);">
+    <div class="wrap reveal">
+      <div class="section-eyebrow">
+        <span data-i18n="en">05 · Get running</span>
+        <span data-i18n="zh">05 · 快速上手</span>
+      </div>
+      <h2 class="section-title">
+        <span data-i18n="en">From <em>git clone</em> to first article in two minutes.</span>
+        <span data-i18n="zh">从 <em>git clone</em> 到第一篇文章，两分钟。</span>
+      </h2>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">i.</div>
+          <h3>
+            <span data-i18n="en">Compose up</span>
+            <span data-i18n="zh">启动容器</span>
+          </h3>
+          <p>
+            <span data-i18n="en">Pull the image, start the binary alongside Postgres. No external dependencies, no build step.</span>
+            <span data-i18n="zh">拉取镜像，与 Postgres 一起启动。无外部依赖，无构建步骤。</span>
+          </p>
+          <div class="step-cmd"><span class="pmt">$</span>docker compose up -d</div>
+        </div>
+        <div class="step">
+          <div class="step-num">ii.</div>
+          <h3>
+            <span data-i18n="en">Open the wizard</span>
+            <span data-i18n="zh">打开配置向导</span>
+          </h3>
+          <p>
+            <span data-i18n="en">Pick a language pair, paste an OpenAI-compatible API key, set your admin password.</span>
+            <span data-i18n="zh">选择语言对，粘贴 OpenAI 兼容 API 密钥，设置管理员密码。</span>
+          </p>
+          <div class="step-cmd">localhost:3000/setup</div>
+        </div>
+        <div class="step">
+          <div class="step-num">iii.</div>
+          <h3>
+            <span data-i18n="en">Add your feeds</span>
+            <span data-i18n="zh">添加订阅源</span>
+          </h3>
+          <p>
+            <span data-i18n="en">Paste a URL, drop in an OPML, or point any Fever client at your new server. Read.</span>
+            <span data-i18n="zh">粘贴 URL、导入 OPML，或将 Fever 客户端指向你的新服务器。开始阅读。</span>
+          </p>
+          <div class="step-cmd">+ feed · or · import.opml</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Tech stack ===== -->
+  <section class="stack-section" id="stack">
+    <div class="wrap reveal">
+      <div class="section-eyebrow">
+        <span data-i18n="en">06 · Under the hood</span>
+        <span data-i18n="zh">06 · 技术细节</span>
+      </div>
+      <h2 class="section-title">
+        <span data-i18n="en">Boring tech, on purpose.</span>
+        <span data-i18n="zh">刻意选择<em>无聊</em>的技术。</span>
+      </h2>
+      <p class="section-sub">
+        <span data-i18n="en">Picked for longevity, not novelty. You'll be able to deploy this five years from now without rewriting a thing.</span>
+        <span data-i18n="zh">选择经久耐用，而非追逐新潮。五年后你依然可以直接部署，无需重写任何一行。</span>
+      </p>
+
+      <div class="stack-grid">
+        <div class="stack-block">
+          <h4>Backend</h4>
+          <p>
+            <span data-i18n="en">Go 1.25, single static binary, embedded migrations.</span>
+            <span data-i18n="zh">Go 1.25，单一静态二进制，内嵌数据库迁移。</span>
+          </p>
+        </div>
+        <div class="stack-block">
+          <h4>Frontend</h4>
+          <p>
+            <span data-i18n="en">Next.js 15, static export embedded in the Go binary.</span>
+            <span data-i18n="zh">Next.js 15，静态导出嵌入 Go 二进制。</span>
+          </p>
+        </div>
+        <div class="stack-block">
+          <h4>Storage</h4>
+          <p>
+            <span data-i18n="en">Postgres 16 with full-text CJK search, no plugins.</span>
+            <span data-i18n="zh">Postgres 16，支持中日韩全文搜索，无需插件。</span>
+          </p>
+        </div>
+        <div class="stack-block">
+          <h4>AI Provider</h4>
+          <p>
+            <span data-i18n="en">OpenAI-compatible — DeepSeek, Moonshot, one-api, OpenRouter.</span>
+            <span data-i18n="zh">OpenAI 兼容——DeepSeek、Moonshot、one-api、OpenRouter。</span>
+          </p>
+        </div>
+      </div>
+
+      <div style="margin-top: 56px;">
+        <div class="section-eyebrow" style="margin-bottom: 10px;">
+          <span data-i18n="en">Keyboard-first</span>
+          <span data-i18n="zh">键盘优先</span>
+        </div>
+        <div class="kbd-row">
+          <span>
+            <span class="kbd">L</span>
+            <span class="kbd-desc" data-i18n="en">next</span>
+            <span class="kbd-desc" data-i18n="zh">下一篇</span>
+          </span>
+          <span style="margin-left: 14px;">
+            <span class="kbd">H</span>
+            <span class="kbd-desc" data-i18n="en">prev</span>
+            <span class="kbd-desc" data-i18n="zh">上一篇</span>
+          </span>
+          <span style="margin-left: 14px;">
+            <span class="kbd">J</span>
+            <span class="kbd-desc" data-i18n="en">scroll down</span>
+            <span class="kbd-desc" data-i18n="zh">向下滚动</span>
+          </span>
+          <span style="margin-left: 14px;">
+            <span class="kbd">K</span>
+            <span class="kbd-desc" data-i18n="en">scroll up</span>
+            <span class="kbd-desc" data-i18n="zh">向上滚动</span>
+          </span>
+          <span style="margin-left: 14px;">
+            <span class="kbd">S</span>
+            <span class="kbd-desc" data-i18n="en">star</span>
+            <span class="kbd-desc" data-i18n="zh">收藏</span>
+          </span>
+          <span style="margin-left: 14px;">
+            <span class="kbd">R</span>
+            <span class="kbd-desc" data-i18n="en">mark read</span>
+            <span class="kbd-desc" data-i18n="zh">标记已读</span>
+          </span>
+          <span style="margin-left: 14px;">
+            <span class="kbd">F</span>
+            <span class="kbd-desc" data-i18n="en">focus mode</span>
+            <span class="kbd-desc" data-i18n="zh">专注模式</span>
+          </span>
+          <span style="margin-left: 14px;">
+            <span class="kbd">?</span>
+            <span class="kbd-desc" data-i18n="en">help</span>
+            <span class="kbd-desc" data-i18n="zh">帮助</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Outro ===== -->
+  <section class="outro">
+    <div class="narrow reveal">
+      <h2>
+        <span data-i18n="en">Stop translating. <em>Start</em> reading.</span>
+        <span data-i18n="zh">停止翻译。<em>开始</em>阅读。</span>
+      </h2>
+      <div class="hero-ctas" style="justify-content: center;">
+        <a class="btn btn-primary" href="https://github.com/razeencheng/xreader" target="_blank" rel="noopener">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 0 0-2.5 15.6c.4.1.5-.2.5-.4v-1.5c-2.2.5-2.7-1-2.7-1-.4-.9-.9-1.2-.9-1.2-.7-.5.1-.5.1-.5.8.1 1.2.8 1.2.8.7 1.2 1.9.9 2.4.7.1-.5.3-.9.5-1.1-1.8-.2-3.6-.9-3.6-3.9 0-.9.3-1.6.8-2.1-.1-.2-.4-1 .1-2.1 0 0 .7-.2 2.2.8a7.5 7.5 0 0 1 4 0c1.5-1 2.2-.8 2.2-.8.4 1.1.2 1.9.1 2.1.5.5.8 1.2.8 2.1 0 3-1.8 3.7-3.6 3.9.3.2.5.7.5 1.5v2.2c0 .2.1.5.6.4A8 8 0 0 0 8 0z"/></svg>
+          <span data-i18n="en">Star on GitHub</span>
+          <span data-i18n="zh">GitHub 上加星</span>
+        </a>
+        <a class="btn btn-secondary" href="https://app.xreader.cc" target="_blank" rel="noopener">
+          <span data-i18n="en">Open the live demo</span>
+          <span data-i18n="zh">打开在线演示</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <div class="footer-inner">
+      <div>
+        <a href="#" class="brand" style="font-size: 13px;">
+          <img class="brand-mark" src="assets/icon.png" alt="xReader" style="width: 22px; height: 22px;"/>
+          <span>xReader</span>
+        </a>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/razeencheng/xreader">GitHub</a>
+        <a href="https://github.com/razeencheng/xreader/blob/main/LICENSE">AGPL-3.0</a>
+        <a href="https://app.xreader.cc">Demo</a>
+        <a href="https://github.com/razeencheng/xreader/blob/main/README.md">Docs</a>
+      </div>
+      <div class="footer-mono">© 2025 · self-hosted &amp; open source</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Sticky header shadow
+  var hdr = document.getElementById("siteHeader");
+  window.addEventListener("scroll", function() {
+    hdr.classList.toggle("scrolled", window.scrollY > 4);
+  });
+
+  // Reveal on scroll
+  var io = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting) {
+        e.target.classList.add("visible");
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: "0px 0px -40px 0px" });
+  document.querySelectorAll(".reveal").forEach(function(el) { io.observe(el); });
+
+  // Language toggle
+  function toggleLang() {
+    var html = document.documentElement;
+    var current = html.getAttribute("data-lang");
+    var next = current === "en" ? "zh" : "en";
+    html.setAttribute("data-lang", next);
+    html.setAttribute("lang", next === "zh" ? "zh-CN" : "en");
+    try { localStorage.setItem("xr-lang", next); } catch(e) {}
+  }
+
+  // Restore saved language or auto-detect from browser
+  (function() {
+    var lang = "en";
+    try { var saved = localStorage.getItem("xr-lang"); if (saved) lang = saved; } catch(e) {}
+    if (!localStorage.getItem("xr-lang")) {
+      var nav = (navigator.language || "").toLowerCase();
+      if (nav.startsWith("zh")) lang = "zh";
+    }
+    document.documentElement.setAttribute("data-lang", lang);
+    document.documentElement.setAttribute("lang", lang === "zh" ? "zh-CN" : "en");
+  })();
+</script>
+
+</body>
+</html>

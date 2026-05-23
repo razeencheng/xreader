@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>XSS Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>XSS Item</title>
+      <guid>xss-1</guid>
+      <link>https://example.com/xss</link>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <description>&lt;p&gt;Hello&lt;/p&gt;&lt;script&gt;alert(1)&lt;/script&gt;&lt;p onclick="evil()"&gt;click me&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS idx_article_state_changes_user_changed;
