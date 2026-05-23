@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "xreader-landing",
+  "compatibility_date": "2025-05-22",
+  // Pure static site — no Worker script needed. Cloudflare serves the
+  // files in ./public directly from its edge.
+  "assets": {
+    "directory": "./public",
+    // Serve /index.html at "/", and fall back to it for unknown paths
+    // so the single-page landing always renders.
+    "not_found_handling": "single-page-application"
+  }
+}

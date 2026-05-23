@@ -1,0 +1,3 @@
+DROP INDEX IF EXISTS idx_articles_fts;
+DROP TABLE IF EXISTS articles;
+DROP TABLE IF EXISTS sources;
