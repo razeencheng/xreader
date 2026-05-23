@@ -33,7 +33,7 @@ jobs:
 
       - name: GHCR metadata
         id: ghcr_meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
           flavor: latest=auto
@@ -61,7 +61,7 @@ jobs:
       - name: Docker Hub metadata
         if: env.HAS_DOCKERHUB == 'true'
         id: dh_meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: docker.io/razeencheng/xreader
           flavor: latest=auto
