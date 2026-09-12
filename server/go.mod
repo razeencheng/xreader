@@ -1,6 +1,6 @@
 module github.com/razeencheng/xreader
 
-go 1.25.5
+go 1.26.0
 
 require (
 	github.com/PuerkitoBio/goquery v1.12.0
@@ -14,7 +14,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.44.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.44.0
 	golang.org/x/net v0.58.0
-	golang.org/x/oauth2 v0.36.0
+	golang.org/x/oauth2 v0.37.0
 )
 
 require (
